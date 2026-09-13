@@ -806,8 +806,10 @@ function BatchDelivery({ state, setState, showToast }) {
           state={state}
           setState={setState}
           showToast={showToast}
-          initialDate={date}
-          initialArea={area}
+          date={date}
+          setDate={setDate}
+          area={area}
+          setArea={setArea}
         />
       )}
     </div>
@@ -901,32 +903,29 @@ function DailyLogEditModal({ customer, date, morningEntry, eveningEntry, onSave,
   );
 }
 
-function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea }) {
+function DailyCustomerLog({ state, setState, showToast, date, setDate, area, setArea }) {
   const { customers, areas, deliveries, settings } = state;
-  const [logDate, setLogDate] = useState(initialDate || todayStr());
-  const [logArea, setLogArea] = useState(initialArea || "");
+  const activeDate = date || todayStr();
+  const activeArea = area || "";
   const [editingRow, setEditingRow] = useState(null);
   const [showOnlyActive, setShowOnlyActive] = useState(false);
 
-  useEffect(() => {
-    if (initialDate) setLogDate(initialDate);
-  }, [initialDate]);
-
   const changeDate = (days) => {
-    const d = new Date(logDate + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    setLogDate(d.toISOString().slice(0, 10));
+    const [y, m, d] = activeDate.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    setDate(dt.toISOString().slice(0, 10));
   };
 
   const areaCustomers = useMemo(() => {
-    return customers.filter((c) => (logArea ? c.area === logArea : true));
-  }, [customers, logArea]);
+    return customers.filter((c) => (activeArea ? c.area === activeArea : true));
+  }, [customers, activeArea]);
 
   const logRows = useMemo(() => {
     return areaCustomers
       .map((c) => {
-        const morning = deliveries.find((d) => d.date === logDate && d.shift === "Morning" && d.customerId === c.id);
-        const evening = deliveries.find((d) => d.date === logDate && d.shift === "Evening" && d.customerId === c.id);
+        const morning = deliveries.find((d) => d.date === activeDate && d.shift === "Morning" && d.customerId === c.id);
+        const evening = deliveries.find((d) => d.date === activeDate && d.shift === "Evening" && d.customerId === c.id);
         const morningLitres = Number(morning?.litre) || 0;
         const eveningLitres = Number(evening?.litre) || 0;
         const totalLitres = morningLitres + eveningLitres;
@@ -951,7 +950,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
         };
       })
       .filter((r) => (!showOnlyActive ? true : r.hasEntry));
-  }, [areaCustomers, deliveries, logDate, showOnlyActive]);
+  }, [areaCustomers, deliveries, activeDate, showOnlyActive]);
 
   const totalMorning = logRows.reduce((a, r) => a + r.morningLitres, 0);
   const totalEvening = logRows.reduce((a, r) => a + r.eveningLitres, 0);
@@ -959,10 +958,10 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
   const grandTotalAmount = logRows.reduce((a, r) => a + r.amount, 0);
   const grandTotalReceived = logRows.reduce((a, r) => a + r.received, 0);
 
-  const saveLogEdit = ({ customerId, date, morningLitres, eveningLitres, rate, received }) => {
+  const saveLogEdit = ({ customerId, date: entryDate, morningLitres, eveningLitres, rate, received }) => {
     setState((prev) => {
       const otherDeliveries = prev.deliveries.filter(
-        (d) => !(d.date === date && d.customerId === customerId)
+        (d) => !(d.date === entryDate && d.customerId === customerId)
       );
       const newEntries = [];
       const mQty = Number(morningLitres) || 0;
@@ -973,7 +972,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
       if (mQty > 0 || (eQty === 0 && rAmt > 0)) {
         newEntries.push({
           id: uid(),
-          date,
+          date: entryDate,
           customerId,
           shift: "Morning",
           litre: mQty,
@@ -984,7 +983,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
       if (eQty > 0) {
         newEntries.push({
           id: uid(),
-          date,
+          date: entryDate,
           customerId,
           shift: "Evening",
           litre: eQty,
@@ -1001,7 +1000,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
     if (!window.confirm("Remove delivery records for this customer on this date?")) return;
     setState((prev) => ({
       ...prev,
-      deliveries: prev.deliveries.filter((d) => !(d.date === logDate && d.customerId === customerId)),
+      deliveries: prev.deliveries.filter((d) => !(d.date === activeDate && d.customerId === customerId)),
     }));
     showToast("Daily log entry removed");
   };
@@ -1031,8 +1030,8 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(excelRows);
-    XLSX.utils.book_append_sheet(wb, ws, `Daily Log ${logDate}`);
-    const fileName = `Daily_Log_${logDate}${logArea ? `_${logArea}` : ""}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, ws, `Daily Log ${activeDate}`);
+    const fileName = `Daily_Log_${activeDate}${activeArea ? `_${activeArea}` : ""}.xlsx`;
     XLSX.writeFile(wb, fileName);
     showToast(`Exported ${fileName}`);
   };
@@ -1054,8 +1053,8 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
             </button>
             <Input
               type="date"
-              value={logDate}
-              onChange={(e) => setLogDate(e.target.value)}
+              value={activeDate}
+              onChange={(e) => setDate(e.target.value)}
               className="py-1 px-2 text-[13px] w-36"
             />
             <button
@@ -1070,7 +1069,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
           </div>
           <button
             type="button"
-            onClick={() => setLogDate(todayStr())}
+            onClick={() => setDate(todayStr())}
             className="px-2.5 py-1 text-[12px] rounded border hover:bg-neutral-100 transition-colors"
             style={{ borderColor: "var(--border)", color: "var(--ink)" }}
           >
@@ -1078,7 +1077,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
           </button>
 
           <div className="w-44 ml-2">
-            <Select value={logArea} onChange={(e) => setLogArea(e.target.value)}>
+            <Select value={activeArea} onChange={(e) => setArea(e.target.value)}>
               <option value="">All Areas / Routes</option>
               {areas.map((a) => <option key={a} value={a}>{a}</option>)}
             </Select>
@@ -1224,7 +1223,7 @@ function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea
       {editingRow && (
         <DailyLogEditModal
           customer={editingRow.customer}
-          date={logDate}
+          date={activeDate}
           morningEntry={editingRow.morning}
           eveningEntry={editingRow.evening}
           onSave={saveLogEdit}
