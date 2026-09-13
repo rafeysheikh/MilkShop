@@ -708,7 +708,7 @@ function BatchDelivery({ state, setState, showToast }) {
     });
     setRows(reset);
 
-    showToast("Delivery entries saved! Log updated below.");
+    showToast("Delivery entries saved");
   };
 
   const totalLitre = Object.values(rows).reduce((a, r) => a + (Number(r.litre) || 0), 0);
@@ -737,96 +737,70 @@ function BatchDelivery({ state, setState, showToast }) {
             }`}
             style={{ borderColor: "var(--border)" }}
           >
-            <FileSpreadsheet size={14} /> Daily Log & Register (Excel View)
+            <FileSpreadsheet size={14} /> Daily Log & Register
           </button>
         </div>
       </div>
 
       {subView === "entry" ? (
-        <>
-          <Card className="p-4">
-            <div className="flex flex-wrap gap-3 mb-4">
-              <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-              <Field label="Shift">
-                <Select value={shift} onChange={(e) => setShift(e.target.value)}>
-                  <option>Morning</option><option>Evening</option>
-                </Select>
-              </Field>
-              <Field label="Area / Route">
-                <Select value={area} onChange={(e) => setArea(e.target.value)}>
-                  {areas.map((a) => <option key={a}>{a}</option>)}
-                </Select>
-              </Field>
-            </div>
-
-            {filtered.length === 0 ? (
-              <EmptyState icon={Users} title="No customers in this area" sub="Add customers from the Customers tab first." />
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[13.5px]">
-                    <thead>
-                      <tr className="text-left border-b" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-                        <th className="py-2 pl-3 pr-2 font-medium w-14 text-center">S.No</th>
-                        <th className="py-2 px-3 font-medium">Customer</th>
-                        <th className="font-medium px-2 w-28">Litre</th>
-                        <th className="font-medium px-2 w-28">Rate</th>
-                        <th className="font-medium text-right px-6 w-32">Amount</th>
-                        <th className="font-medium pl-6 pr-3 w-32">Received</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((c, idx) => {
-                        const row = rows[c.id] || {};
-                        const amt = (Number(row.litre) || 0) * (Number(row.rate) || 0);
-                        return (
-                          <tr key={c.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                            <td className="py-2.5 pl-3 pr-2 text-center font-mono text-[12.5px]" style={{ color: "var(--muted)" }}>{idx + 1}</td>
-                            <td className="py-2.5 px-3 font-medium" style={{ color: "var(--ink)" }}>{c.name}</td>
-                            <td className="px-2"><Input type="number" value={row.litre} onChange={(e) => updateRow(c.id, "litre", e.target.value)} placeholder="0" /></td>
-                            <td className="px-2"><Input type="number" value={row.rate} onChange={(e) => updateRow(c.id, "rate", e.target.value)} /></td>
-                            <td className="tnum text-right px-6 font-medium" style={{ color: "var(--ink)" }}>{fmtMoney(amt, "")}</td>
-                            <td className="pl-6 pr-3"><Input type="number" value={row.received} onChange={(e) => updateRow(c.id, "received", e.target.value)} placeholder="0" /></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-                    Total: <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{fmtNum(totalLitre)} L</span> · {fmtMoney(totalAmt, settings.currency)}
-                  </p>
-                  <Btn onClick={saveAll}><Plus size={14} /> Save entries</Btn>
-                </div>
-              </>
-            )}
-          </Card>
-
-          {/* Real-time Daily Log for this date in Excel format */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[15px] font-semibold flex items-center gap-2" style={{ color: "var(--ink)" }}>
-                <FileSpreadsheet size={16} className="text-emerald-700" /> Daily Log for {fmtDate(date)} (Excel Format)
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSubView("log")}
-                className="text-[12px] font-medium hover:underline flex items-center gap-1"
-                style={{ color: "var(--accent)" }}
-              >
-                Inspect & Edit Date Logs →
-              </button>
-            </div>
-            <DailyCustomerLog
-              state={state}
-              setState={setState}
-              showToast={showToast}
-              initialDate={date}
-              initialArea={area}
-            />
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-3 mb-4">
+            <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+            <Field label="Shift">
+              <Select value={shift} onChange={(e) => setShift(e.target.value)}>
+                <option>Morning</option><option>Evening</option>
+              </Select>
+            </Field>
+            <Field label="Area / Route">
+              <Select value={area} onChange={(e) => setArea(e.target.value)}>
+                {areas.map((a) => <option key={a}>{a}</option>)}
+              </Select>
+            </Field>
           </div>
-        </>
+
+          {filtered.length === 0 ? (
+            <EmptyState icon={Users} title="No customers in this area" sub="Add customers from the Customers tab first." />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13.5px]">
+                  <thead>
+                    <tr className="text-left border-b" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                      <th className="py-2 pl-3 pr-2 font-medium w-14 text-center">S.No</th>
+                      <th className="py-2 px-3 font-medium">Customer</th>
+                      <th className="font-medium px-2 w-28">Litre</th>
+                      <th className="font-medium px-2 w-28">Rate</th>
+                      <th className="font-medium text-right px-6 w-32">Amount</th>
+                      <th className="font-medium pl-6 pr-3 w-32">Received</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((c, idx) => {
+                      const row = rows[c.id] || {};
+                      const amt = (Number(row.litre) || 0) * (Number(row.rate) || 0);
+                      return (
+                        <tr key={c.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                          <td className="py-2.5 pl-3 pr-2 text-center font-mono text-[12.5px]" style={{ color: "var(--muted)" }}>{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-medium" style={{ color: "var(--ink)" }}>{c.name}</td>
+                          <td className="px-2"><Input type="number" value={row.litre} onChange={(e) => updateRow(c.id, "litre", e.target.value)} placeholder="0" /></td>
+                          <td className="px-2"><Input type="number" value={row.rate} onChange={(e) => updateRow(c.id, "rate", e.target.value)} /></td>
+                          <td className="tnum text-right px-6 font-medium" style={{ color: "var(--ink)" }}>{fmtMoney(amt, "")}</td>
+                          <td className="pl-6 pr-3"><Input type="number" value={row.received} onChange={(e) => updateRow(c.id, "received", e.target.value)} placeholder="0" /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-[12.5px]" style={{ color: "var(--muted)" }}>
+                  Total: <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{fmtNum(totalLitre)} L</span> · {fmtMoney(totalAmt, settings.currency)}
+                </p>
+                <Btn onClick={saveAll}><Plus size={14} /> Save entries</Btn>
+              </div>
+            </>
+          )}
+        </Card>
       ) : (
         <DailyCustomerLog
           state={state}
