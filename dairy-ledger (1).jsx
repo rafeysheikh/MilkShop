@@ -4,7 +4,7 @@ import {
   Settings as SettingsIcon, Plus, Trash2, Pencil, X, ChevronDown, ChevronUp, ChevronsUp, ChevronsDown,
   ArrowUpRight, ArrowDownRight, ArrowUpDown, Search, Download, AlertTriangle,
   Menu, Milk, Droplets, Wallet, TrendingUp, Check, Receipt, PieChart,
-  Upload, FileSpreadsheet, Folder, RefreshCw, GripVertical
+  Upload, FileSpreadsheet, Folder, RefreshCw, GripVertical, ChevronLeft, ChevronRight, Calendar
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
@@ -666,6 +666,7 @@ function DailyEntry({ state, setState, showToast }) {
 
 function BatchDelivery({ state, setState, showToast }) {
   const { customers, areas, settings, deliveries } = state;
+  const [subView, setSubView] = useState("entry"); // "entry" | "log"
   const [date, setDate] = useState(todayStr());
   const [shift, setShift] = useState("Morning");
   const [area, setArea] = useState(areas[0] || "");
@@ -707,71 +708,557 @@ function BatchDelivery({ state, setState, showToast }) {
     });
     setRows(reset);
 
-    showToast("Delivery entries saved");
+    showToast("Delivery entries saved! Log updated below.");
   };
 
   const totalLitre = Object.values(rows).reduce((a, r) => a + (Number(r.litre) || 0), 0);
   const totalAmt = Object.entries(rows).reduce((a, [_, r]) => a + (Number(r.litre) || 0) * (Number(r.rate) || 0), 0);
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap gap-3 mb-4">
-        <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        <Field label="Shift">
-          <Select value={shift} onChange={(e) => setShift(e.target.value)}>
-            <option>Morning</option><option>Evening</option>
-          </Select>
-        </Field>
-        <Field label="Area / Route">
-          <Select value={area} onChange={(e) => setArea(e.target.value)}>
-            {areas.map((a) => <option key={a}>{a}</option>)}
-          </Select>
-        </Field>
+    <div className="space-y-4">
+      {/* Sub-view Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setSubView("entry")}
+            className={`px-3.5 py-1.5 rounded-md text-[13px] font-medium transition-all flex items-center gap-1.5 ${
+              subView === "entry" ? "bg-[var(--accent)] text-[#231A06] shadow-sm font-semibold" : "bg-white border text-[var(--ink)] hover:bg-neutral-50"
+            }`}
+            style={{ borderColor: "var(--border)" }}
+          >
+            <NotebookPen size={14} /> Daily Entry Sheet
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubView("log")}
+            className={`px-3.5 py-1.5 rounded-md text-[13px] font-medium transition-all flex items-center gap-1.5 ${
+              subView === "log" ? "bg-[var(--accent)] text-[#231A06] shadow-sm font-semibold" : "bg-white border text-[var(--ink)] hover:bg-neutral-50"
+            }`}
+            style={{ borderColor: "var(--border)" }}
+          >
+            <FileSpreadsheet size={14} /> Daily Log & Register (Excel View)
+          </button>
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="No customers in this area" sub="Add customers from the Customers tab first." />
-      ) : (
+      {subView === "entry" ? (
         <>
+          <Card className="p-4">
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+              <Field label="Shift">
+                <Select value={shift} onChange={(e) => setShift(e.target.value)}>
+                  <option>Morning</option><option>Evening</option>
+                </Select>
+              </Field>
+              <Field label="Area / Route">
+                <Select value={area} onChange={(e) => setArea(e.target.value)}>
+                  {areas.map((a) => <option key={a}>{a}</option>)}
+                </Select>
+              </Field>
+            </div>
+
+            {filtered.length === 0 ? (
+              <EmptyState icon={Users} title="No customers in this area" sub="Add customers from the Customers tab first." />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13.5px]">
+                    <thead>
+                      <tr className="text-left border-b" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                        <th className="py-2 pl-3 pr-2 font-medium w-14 text-center">S.No</th>
+                        <th className="py-2 px-3 font-medium">Customer</th>
+                        <th className="font-medium px-2 w-28">Litre</th>
+                        <th className="font-medium px-2 w-28">Rate</th>
+                        <th className="font-medium text-right px-6 w-32">Amount</th>
+                        <th className="font-medium pl-6 pr-3 w-32">Received</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((c, idx) => {
+                        const row = rows[c.id] || {};
+                        const amt = (Number(row.litre) || 0) * (Number(row.rate) || 0);
+                        return (
+                          <tr key={c.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                            <td className="py-2.5 pl-3 pr-2 text-center font-mono text-[12.5px]" style={{ color: "var(--muted)" }}>{idx + 1}</td>
+                            <td className="py-2.5 px-3 font-medium" style={{ color: "var(--ink)" }}>{c.name}</td>
+                            <td className="px-2"><Input type="number" value={row.litre} onChange={(e) => updateRow(c.id, "litre", e.target.value)} placeholder="0" /></td>
+                            <td className="px-2"><Input type="number" value={row.rate} onChange={(e) => updateRow(c.id, "rate", e.target.value)} /></td>
+                            <td className="tnum text-right px-6 font-medium" style={{ color: "var(--ink)" }}>{fmtMoney(amt, "")}</td>
+                            <td className="pl-6 pr-3"><Input type="number" value={row.received} onChange={(e) => updateRow(c.id, "received", e.target.value)} placeholder="0" /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-[12.5px]" style={{ color: "var(--muted)" }}>
+                    Total: <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{fmtNum(totalLitre)} L</span> · {fmtMoney(totalAmt, settings.currency)}
+                  </p>
+                  <Btn onClick={saveAll}><Plus size={14} /> Save entries</Btn>
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Real-time Daily Log for this date in Excel format */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[15px] font-semibold flex items-center gap-2" style={{ color: "var(--ink)" }}>
+                <FileSpreadsheet size={16} className="text-emerald-700" /> Daily Log for {fmtDate(date)} (Excel Format)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSubView("log")}
+                className="text-[12px] font-medium hover:underline flex items-center gap-1"
+                style={{ color: "var(--accent)" }}
+              >
+                Inspect & Edit Date Logs →
+              </button>
+            </div>
+            <DailyCustomerLog
+              state={state}
+              setState={setState}
+              showToast={showToast}
+              initialDate={date}
+              initialArea={area}
+            />
+          </div>
+        </>
+      ) : (
+        <DailyCustomerLog
+          state={state}
+          setState={setState}
+          showToast={showToast}
+          initialDate={date}
+          initialArea={area}
+        />
+      )}
+    </div>
+  );
+}
+
+function DailyLogEditModal({ customer, date, morningEntry, eveningEntry, onSave, onClose, settings }) {
+  const [morningLitres, setMorningLitres] = useState(morningEntry ? morningEntry.litre : "");
+  const [eveningLitres, setEveningLitres] = useState(eveningEntry ? eveningEntry.litre : "");
+  const [rate, setRate] = useState(morningEntry?.rate ?? eveningEntry?.rate ?? customer.rate ?? 240);
+  const [received, setReceived] = useState((morningEntry?.received || 0) + (eveningEntry?.received || 0) || "");
+
+  const totalLitres = (Number(morningLitres) || 0) + (Number(eveningLitres) || 0);
+  const totalAmount = totalLitres * (Number(rate) || 0);
+
+  const handleSave = () => {
+    onSave({
+      customerId: customer.id,
+      date,
+      morningLitres: Number(morningLitres) || 0,
+      eveningLitres: Number(eveningLitres) || 0,
+      rate: Number(rate) || 0,
+      received: Number(received) || 0,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal title={`Edit Daily Log — ${customer.name}`} onClose={onClose}>
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between p-2 rounded bg-neutral-50 border text-[12.5px]" style={{ borderColor: "var(--border)" }}>
+          <span style={{ color: "var(--muted)" }}>Date: <strong style={{ color: "var(--ink)" }}>{fmtDate(date)}</strong></span>
+          {customer.area && <Badge>{customer.area}</Badge>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Morning (Litres)">
+            <Input
+              type="number"
+              value={morningLitres}
+              onChange={(e) => setMorningLitres(e.target.value)}
+              placeholder="0"
+              autoFocus
+            />
+          </Field>
+          <Field label="Evening (Litres)">
+            <Input
+              type="number"
+              value={eveningLitres}
+              onChange={(e) => setEveningLitres(e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Rate (per Litre)">
+            <Input
+              type="number"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+            />
+          </Field>
+          <Field label="Amount Received">
+            <Input
+              type="number"
+              value={received}
+              onChange={(e) => setReceived(e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+
+        <div className="p-3 rounded-lg border bg-neutral-50/70 space-y-1.5" style={{ borderColor: "var(--border)" }}>
+          <div className="flex justify-between text-[13px]">
+            <span style={{ color: "var(--muted)" }}>Total Litres:</span>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>{fmtNum(totalLitres)} L</span>
+          </div>
+          <div className="flex justify-between text-[13px]">
+            <span style={{ color: "var(--muted)" }}>Total Amount:</span>
+            <span className="font-semibold text-[14px]" style={{ color: "var(--accent)" }}>{fmtMoney(totalAmount, settings.currency)}</span>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={handleSave}><Check size={14} /> Save Changes</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function DailyCustomerLog({ state, setState, showToast, initialDate, initialArea }) {
+  const { customers, areas, deliveries, settings } = state;
+  const [logDate, setLogDate] = useState(initialDate || todayStr());
+  const [logArea, setLogArea] = useState(initialArea || "");
+  const [editingRow, setEditingRow] = useState(null);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
+
+  useEffect(() => {
+    if (initialDate) setLogDate(initialDate);
+  }, [initialDate]);
+
+  const changeDate = (days) => {
+    const d = new Date(logDate + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    setLogDate(d.toISOString().slice(0, 10));
+  };
+
+  const areaCustomers = useMemo(() => {
+    return customers.filter((c) => (logArea ? c.area === logArea : true));
+  }, [customers, logArea]);
+
+  const logRows = useMemo(() => {
+    return areaCustomers
+      .map((c) => {
+        const morning = deliveries.find((d) => d.date === logDate && d.shift === "Morning" && d.customerId === c.id);
+        const evening = deliveries.find((d) => d.date === logDate && d.shift === "Evening" && d.customerId === c.id);
+        const morningLitres = Number(morning?.litre) || 0;
+        const eveningLitres = Number(evening?.litre) || 0;
+        const totalLitres = morningLitres + eveningLitres;
+        const rate = Number(morning?.rate ?? evening?.rate ?? c.rate) || 0;
+        const amount = totalLitres * rate;
+        const received = (Number(morning?.received) || 0) + (Number(evening?.received) || 0);
+        const hasEntry = !!(morning || evening || totalLitres > 0 || received > 0);
+
+        return {
+          customer: c,
+          name: c.name,
+          area: c.area,
+          morning,
+          evening,
+          morningLitres,
+          eveningLitres,
+          totalLitres,
+          rate,
+          amount,
+          received,
+          hasEntry,
+        };
+      })
+      .filter((r) => (!showOnlyActive ? true : r.hasEntry));
+  }, [areaCustomers, deliveries, logDate, showOnlyActive]);
+
+  const totalMorning = logRows.reduce((a, r) => a + r.morningLitres, 0);
+  const totalEvening = logRows.reduce((a, r) => a + r.eveningLitres, 0);
+  const grandTotalLitres = logRows.reduce((a, r) => a + r.totalLitres, 0);
+  const grandTotalAmount = logRows.reduce((a, r) => a + r.amount, 0);
+  const grandTotalReceived = logRows.reduce((a, r) => a + r.received, 0);
+
+  const saveLogEdit = ({ customerId, date, morningLitres, eveningLitres, rate, received }) => {
+    setState((prev) => {
+      const otherDeliveries = prev.deliveries.filter(
+        (d) => !(d.date === date && d.customerId === customerId)
+      );
+      const newEntries = [];
+      const mQty = Number(morningLitres) || 0;
+      const eQty = Number(eveningLitres) || 0;
+      const rAmt = Number(received) || 0;
+      const rRate = Number(rate) || 0;
+
+      if (mQty > 0 || (eQty === 0 && rAmt > 0)) {
+        newEntries.push({
+          id: uid(),
+          date,
+          customerId,
+          shift: "Morning",
+          litre: mQty,
+          rate: rRate,
+          received: rAmt,
+        });
+      }
+      if (eQty > 0) {
+        newEntries.push({
+          id: uid(),
+          date,
+          customerId,
+          shift: "Evening",
+          litre: eQty,
+          rate: rRate,
+          received: mQty > 0 ? 0 : rAmt,
+        });
+      }
+      return { ...prev, deliveries: [...otherDeliveries, ...newEntries] };
+    });
+    showToast("Daily log entry updated");
+  };
+
+  const deleteEntry = (customerId) => {
+    if (!window.confirm("Remove delivery records for this customer on this date?")) return;
+    setState((prev) => ({
+      ...prev,
+      deliveries: prev.deliveries.filter((d) => !(d.date === logDate && d.customerId === customerId)),
+    }));
+    showToast("Daily log entry removed");
+  };
+
+  const handleExport = () => {
+    const excelRows = logRows.map((r, idx) => ({
+      "S No": idx + 1,
+      "Customer": r.name,
+      "Morning": r.morningLitres || 0,
+      "Evening": r.eveningLitres || 0,
+      "Total Litres": r.totalLitres || 0,
+      "Rate": r.rate || 0,
+      "Amount": r.amount || 0,
+      "Received": r.received || 0,
+    }));
+
+    excelRows.push({
+      "S No": "",
+      "Customer": "TOTAL",
+      "Morning": totalMorning,
+      "Evening": totalEvening,
+      "Total Litres": grandTotalLitres,
+      "Rate": "",
+      "Amount": grandTotalAmount,
+      "Received": grandTotalReceived,
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelRows);
+    XLSX.utils.book_append_sheet(wb, ws, `Daily Log ${logDate}`);
+    const fileName = `Daily_Log_${logDate}${logArea ? `_${logArea}` : ""}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast(`Exported ${fileName}`);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Top Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => changeDate(-1)}
+              className="p-1.5 rounded hover:bg-neutral-100 border text-[12px] flex items-center"
+              style={{ borderColor: "var(--border)" }}
+              title="Previous Day"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <Input
+              type="date"
+              value={logDate}
+              onChange={(e) => setLogDate(e.target.value)}
+              className="py-1 px-2 text-[13px] w-36"
+            />
+            <button
+              type="button"
+              onClick={() => changeDate(1)}
+              className="p-1.5 rounded hover:bg-neutral-100 border text-[12px] flex items-center"
+              style={{ borderColor: "var(--border)" }}
+              title="Next Day"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLogDate(todayStr())}
+            className="px-2.5 py-1 text-[12px] rounded border hover:bg-neutral-100 transition-colors"
+            style={{ borderColor: "var(--border)", color: "var(--ink)" }}
+          >
+            Today
+          </button>
+
+          <div className="w-44 ml-2">
+            <Select value={logArea} onChange={(e) => setLogArea(e.target.value)}>
+              <option value="">All Areas / Routes</option>
+              {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+            </Select>
+          </div>
+
+          <label className="flex items-center gap-1.5 text-[12.5px] cursor-pointer ml-2" style={{ color: "var(--ink-soft)" }}>
+            <input
+              type="checkbox"
+              checked={showOnlyActive}
+              onChange={(e) => setShowOnlyActive(e.target.checked)}
+              className="rounded"
+            />
+            <span>Only with entries</span>
+          </label>
+        </div>
+
+        <Btn variant="ghost" onClick={handleExport} className="shrink-0" title="Export this date log to Excel (.xlsx)">
+          <FileSpreadsheet size={14} className="text-emerald-700" /> Export Excel (.xlsx)
+        </Btn>
+      </div>
+
+      {/* Summary Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+        <div className="p-2.5 rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] block" style={{ color: "var(--muted)" }}>Morning Shift</span>
+          <span className="text-[15px] font-bold tnum" style={{ color: "var(--ink)" }}>{fmtNum(totalMorning)} L</span>
+        </div>
+        <div className="p-2.5 rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] block" style={{ color: "var(--muted)" }}>Evening Shift</span>
+          <span className="text-[15px] font-bold tnum" style={{ color: "var(--ink)" }}>{fmtNum(totalEvening)} L</span>
+        </div>
+        <div className="p-2.5 rounded-lg border bg-amber-50/50" style={{ borderColor: "rgba(217, 162, 59, 0.4)" }}>
+          <span className="text-[11px] block" style={{ color: "var(--muted)" }}>Total Litres</span>
+          <span className="text-[15px] font-bold tnum" style={{ color: "var(--accent)" }}>{fmtNum(grandTotalLitres)} L</span>
+        </div>
+        <div className="p-2.5 rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] block" style={{ color: "var(--muted)" }}>Total Amount</span>
+          <span className="text-[15px] font-bold tnum" style={{ color: "var(--ink)" }}>{fmtMoney(grandTotalAmount, settings.currency)}</span>
+        </div>
+        <div className="p-2.5 rounded-lg border bg-emerald-50/50" style={{ borderColor: "rgba(46, 111, 78, 0.3)" }}>
+          <span className="text-[11px] block text-emerald-800">Total Received</span>
+          <span className="text-[15px] font-bold tnum text-emerald-800">{fmtMoney(grandTotalReceived, settings.currency)}</span>
+        </div>
+      </div>
+
+      {/* Main Excel Format Table */}
+      <Card className="overflow-hidden">
+        {logRows.length === 0 ? (
+          <EmptyState icon={FileSpreadsheet} title="No entries found for this date" sub="Select another date or add delivery entries above." />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[13.5px]">
               <thead>
-                <tr className="text-left border-b" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
-                  <th className="py-2 pl-3 pr-2 font-medium w-14 text-center">S.No</th>
-                  <th className="py-2 px-3 font-medium">Customer</th>
-                  <th className="font-medium px-2 w-28">Litre</th>
-                  <th className="font-medium px-2 w-28">Rate</th>
-                  <th className="font-medium text-right px-6 w-32">Amount</th>
-                  <th className="font-medium pl-6 pr-3 w-32">Received</th>
+                <tr className="text-left border-b" style={{ borderColor: "var(--border)", color: "var(--muted)", background: "rgba(0,0,0,0.01)" }}>
+                  <th className="py-2.5 pl-3 pr-2 font-medium w-14 text-center">S No</th>
+                  <th className="py-2.5 px-3 font-medium min-w-[150px]">Customer</th>
+                  <th className="py-2.5 px-3 font-medium text-right w-24">Morning</th>
+                  <th className="py-2.5 px-3 font-medium text-right w-24">Evening</th>
+                  <th className="py-2.5 px-3 font-medium text-right w-28 font-semibold" style={{ color: "var(--ink)" }}>Total Litres</th>
+                  <th className="py-2.5 px-3 font-medium text-right w-20">Rate</th>
+                  <th className="py-2.5 px-4 font-medium text-right w-28">Amount</th>
+                  <th className="py-2.5 px-4 font-medium text-right w-28">Received</th>
+                  <th className="w-20"></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c, idx) => {
-                  const row = rows[c.id] || {};
-                  const amt = (Number(row.litre) || 0) * (Number(row.rate) || 0);
-                  return (
-                    <tr key={c.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                      <td className="py-2.5 pl-3 pr-2 text-center font-mono text-[12.5px]" style={{ color: "var(--muted)" }}>{idx + 1}</td>
-                      <td className="py-2.5 px-3 font-medium" style={{ color: "var(--ink)" }}>{c.name}</td>
-                      <td className="px-2"><Input type="number" value={row.litre} onChange={(e) => updateRow(c.id, "litre", e.target.value)} placeholder="0" /></td>
-                      <td className="px-2"><Input type="number" value={row.rate} onChange={(e) => updateRow(c.id, "rate", e.target.value)} /></td>
-                      <td className="tnum text-right px-6 font-medium" style={{ color: "var(--ink)" }}>{fmtMoney(amt, "")}</td>
-                      <td className="pl-6 pr-3"><Input type="number" value={row.received} onChange={(e) => updateRow(c.id, "received", e.target.value)} placeholder="0" /></td>
-                    </tr>
-                  );
-                })}
+                {logRows.map((r, idx) => (
+                  <tr
+                    key={r.customer.id}
+                    className={`border-b last:border-0 hover:bg-neutral-50/60 transition-colors ${!r.hasEntry ? "opacity-45" : ""}`}
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <td className="py-2 pl-3 pr-2 text-center font-mono text-[12px]" style={{ color: "var(--muted)" }}>
+                      {idx + 1}
+                    </td>
+                    <td className="py-2 px-3 font-medium" style={{ color: "var(--ink)" }}>
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.name}</span>
+                        {r.area && <Badge className="text-[10px] py-0 px-1">{r.area}</Badge>}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-right tnum font-mono">
+                      {r.morningLitres > 0 ? `${fmtNum(r.morningLitres)}` : "—"}
+                    </td>
+                    <td className="py-2 px-3 text-right tnum font-mono">
+                      {r.eveningLitres > 0 ? `${fmtNum(r.eveningLitres)}` : "—"}
+                    </td>
+                    <td className="py-2 px-3 text-right tnum font-semibold font-mono" style={{ color: r.totalLitres > 0 ? "var(--ink)" : "var(--muted)" }}>
+                      {r.totalLitres > 0 ? `${fmtNum(r.totalLitres)} L` : "0 L"}
+                    </td>
+                    <td className="py-2 px-3 text-right tnum font-mono">
+                      {r.rate || "—"}
+                    </td>
+                    <td className="py-2 px-4 text-right tnum font-medium font-mono" style={{ color: r.amount > 0 ? "var(--ink)" : "var(--muted)" }}>
+                      {r.amount > 0 ? fmtMoney(r.amount, "") : "0"}
+                    </td>
+                    <td className="py-2 px-4 text-right tnum font-medium font-mono" style={{ color: r.received > 0 ? "var(--good)" : "var(--muted)" }}>
+                      {r.received > 0 ? fmtMoney(r.received, "") : "0"}
+                    </td>
+                    <td className="px-2">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => setEditingRow(r)}
+                          className="p-1.5 rounded hover:bg-neutral-100 text-gray-600 transition-colors"
+                          title="Edit log entry"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        {r.hasEntry && (
+                          <button
+                            onClick={() => deleteEntry(r.customer.id)}
+                            className="p-1.5 rounded hover:bg-neutral-100 transition-colors"
+                            style={{ color: "var(--danger)" }}
+                            title="Delete log entry"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t font-bold text-[13.5px]" style={{ borderColor: "var(--border)", background: "var(--cream)" }}>
+                  <td className="py-2.5 pl-3 pr-2 text-center"></td>
+                  <td className="py-2.5 px-3">TOTAL</td>
+                  <td className="py-2.5 px-3 text-right tnum">{fmtNum(totalMorning)} L</td>
+                  <td className="py-2.5 px-3 text-right tnum">{fmtNum(totalEvening)} L</td>
+                  <td className="py-2.5 px-3 text-right tnum text-[14px]" style={{ color: "var(--accent)" }}>{fmtNum(grandTotalLitres)} L</td>
+                  <td className="py-2.5 px-3 text-right"></td>
+                  <td className="py-2.5 px-4 text-right tnum">{fmtMoney(grandTotalAmount, "")}</td>
+                  <td className="py-2.5 px-4 text-right tnum text-emerald-800">{fmtMoney(grandTotalReceived, "")}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-[12.5px]" style={{ color: "var(--muted)" }}>
-              Total: <span className="tnum font-medium" style={{ color: "var(--ink)" }}>{fmtNum(totalLitre)} L</span> · {fmtMoney(totalAmt, settings.currency)}
-            </p>
-            <Btn onClick={saveAll}><Plus size={14} /> Save entries</Btn>
-          </div>
-        </>
+        )}
+      </Card>
+
+      {/* Edit Modal */}
+      {editingRow && (
+        <DailyLogEditModal
+          customer={editingRow.customer}
+          date={logDate}
+          morningEntry={editingRow.morning}
+          eveningEntry={editingRow.evening}
+          onSave={saveLogEdit}
+          onClose={() => setEditingRow(null)}
+          settings={settings}
+        />
       )}
-    </Card>
+    </div>
   );
 }
 
