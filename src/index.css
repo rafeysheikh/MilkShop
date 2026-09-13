@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FBF8F1;
+  --cream: #F3EBD8;
+  --sidebar: #17332D;
+  --sidebar-soft: #264B42;
+  --ink: #221F19;
+  --ink-soft: #453F32;
+  --muted: #7A7261;
+  --border: #E4DCC7;
+  --accent: #D9A441;
+  --accent-soft: #F3E3B8;
+  --good: #2F6F4E;
+  --danger: #A13D2B;
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DCD2B8;
+  border-radius: 6px;
+}
